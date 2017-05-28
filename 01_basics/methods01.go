@@ -21,7 +21,18 @@ func (v Vertex) Abs() float64 {
     return math.Sqrt(v.X*v.X + v.Y*v.Y)
 }
 
+// Declare methods on non-struct types
+type MyFloat float64
+func (f MyFloat) Abs() float64 {
+    if f < 0 {
+        return float64(-f)
+    }
+    return float64(f)
+}
+
 func main() {
     v := Vertex{3, 4}
     fmt.Println(v.Abs())
+    f := MyFloat(-1.2345)
+    fmt.Println(f.Abs())
 }
