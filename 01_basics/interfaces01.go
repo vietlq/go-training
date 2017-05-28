@@ -15,16 +15,21 @@ type Abser interface {
 // Implicit interfaces decouple the definition of an interface from its implementation, which could then appear in any package without prearrangement.
 
 func main() {
+    // Interface value. Equivalent to C++ pure virtual base class instance
     var a Abser
+
     f := MyFloat(-math.Sqrt2)
     v := Vertex{3, 4}
 
     a = f
-    a = &v
-    // This will fail
-    //a = v
-
     fmt.Println(a.Abs())
+    describe(a)
+
+    a = &v
+    fmt.Println(a.Abs())
+    describe(a)
+    // This will fail. Implement func (v Vertex) Abs() float64
+    //a = v
 }
 
 type MyFloat float64
@@ -42,4 +47,9 @@ type Vertex struct {
 
 func (v *Vertex) Abs() float64 {
     return math.Sqrt(v.X*v.X + v.Y*v.Y)
+}
+
+// Pass interface value into the function
+func describe(a Abser) {
+    fmt.Printf("(%v, %T)\n", a, a)
 }
