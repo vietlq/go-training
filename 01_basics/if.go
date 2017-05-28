@@ -6,6 +6,7 @@ import (
 )
 
 func pow(x, n, lim float64) float64 {
+    // Short statement before the condition, like for
     if v := math.Pow(x, n); v < lim {
         return v
     }
