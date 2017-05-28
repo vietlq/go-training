@@ -23,4 +23,15 @@ func main() {
         sum += sum
     }
     fmt.Println(sum)
+
+    // Forever running loop
+    sum = 1
+    for {
+        if sum < 100 {
+            sum += sum
+        } else {
+            fmt.Println("Broke the infinite loop with sum =", sum)
+            break
+        }
+    }
 }
