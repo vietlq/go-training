@@ -12,4 +12,7 @@ func main() {
     fmt.Println(v)
     v.X = 4
     fmt.Println(v)
+    p := &v
+    p.Y = 8
+    fmt.Println(v)
 }
