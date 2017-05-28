@@ -29,6 +29,7 @@ func (f MyFloat) Abs() float64 {
     }
     return float64(f)
 }
+// You can only declare a method with a receiver whose type is defined in the same package as the method. You cannot declare a method with a receiver whose type is defined in another package (which includes the built-in types such as int).
 
 func main() {
     v := Vertex{3, 4}
