@@ -9,4 +9,17 @@ func main() {
     var s []int = primes[1:4]
     fmt.Println(primes)
     fmt.Println(s)
+
+    names := [4]string{
+        "John",
+        "Misha",
+        "Alice",
+        "Claire",
+    }
+    fmt.Println(names)
+    a := names[0:2]
+    b := names[1:3]
+    b[0] = "Misha the Great"
+    fmt.Println(a, b)
+    fmt.Println(names)
 }
