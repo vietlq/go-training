@@ -10,4 +10,8 @@ func main() {
     var i int
     // See the initialised values: 0 & false
     fmt.Println(i, c, python, java)
+    // Variables with initialisers
+    var t, v int = 1, 2
+    var x, y, z = true, false, "yes!"
+    fmt.Println(t, v, x, y, z)
 }
