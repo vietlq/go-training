@@ -24,4 +24,16 @@ func main() {
     b[0] = "Misha the Great"
     fmt.Println(a, b)
     fmt.Println(names)
+
+    // Slice literal
+    v := []struct {
+        i int
+        b bool
+    }{
+        {2, true},
+        {3, false},
+        {5, false},
+        {7, false},
+    }
+    fmt.Println(v)
 }
