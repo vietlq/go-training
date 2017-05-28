@@ -12,6 +12,7 @@ func main() {
     fmt.Println(i, c, python, java)
     // Variables with initialisers
     var t, v int = 1, 2
+    // When using initiliser, the type can be omitted and inferred
     var x, y, z = true, false, "yes!"
     fmt.Println(t, v, x, y, z)
 }
