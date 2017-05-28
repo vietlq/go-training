@@ -16,4 +16,11 @@ func main() {
         sum += sum
     }
     fmt.Println(sum)
+
+    // Now drop the semicolons. There's no while in Go
+    sum = 1
+    for sum < 100 {
+        sum += sum
+    }
+    fmt.Println(sum)
 }
