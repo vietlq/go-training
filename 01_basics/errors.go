@@ -9,6 +9,7 @@ The error type is a built-in interface similar to fmt.Stringer:
 type error interface {
     Error() string
 }
+A nil error denotes success; a non-nil error denotes failure.
 */
 
 type MyError struct {
