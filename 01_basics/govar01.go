@@ -15,4 +15,7 @@ func main() {
     // When using initiliser, the type can be omitted and inferred
     var x, y, z = true, false, "yes!"
     fmt.Println(t, v, x, y, z)
+    // Short variable declaration only available inside functions
+    a, b := 123, "good!"
+    fmt.Println(a, b)
 }
