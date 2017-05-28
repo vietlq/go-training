@@ -13,12 +13,12 @@ type Fetcher interface {
 
 type VisitDict struct {
     visits map[string]bool
-    mux    sync.Mutex
+    mux    sync.RWMutex
 }
 
 func (vd *VisitDict) Visited(url string) bool {
-    vd.mux.Lock()
-    defer vd.mux.Unlock()
+    vd.mux.RLock()
+    defer vd.mux.RUnlock()
     // https://blog.golang.org/go-maps-in-action
     _, ok := vd.visits[url]
     return ok
