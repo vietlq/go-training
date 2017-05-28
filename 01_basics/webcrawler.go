@@ -19,6 +19,7 @@ type VisitDict struct {
 func (vd *VisitDict) Visited(url string) bool {
     vd.mux.Lock()
     defer vd.mux.Unlock()
+    // https://blog.golang.org/go-maps-in-action
     _, ok := vd.visits[url]
     return ok
 }
@@ -37,9 +38,6 @@ func Crawl(url string, depth int,
     // https://stackoverflow.com/questions/19892732/all-goroutines-are-asleep-deadlock
     defer wg.Done()
 
-    // TODO: Fetch URLs in parallel.
-    // TODO: Don't fetch the same URL twice.
-    // This implementation doesn't do either:
     if depth <= 0 {
         return
     }
