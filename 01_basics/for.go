@@ -9,8 +9,9 @@ func main() {
     }
     fmt.Println(sum)
 
-    // Think of it as a while loop
     sum = 1
+    // Think of it as a while loop
+    // Init & post statements are optional
     for ; sum < 1000; {
         sum += sum
     }
