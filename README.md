@@ -3,6 +3,7 @@
 ## References
 
 * [*A Tour of Go* by Russ Cox](https://www.youtube.com/watch?v=ytEkHepK08c)
+* [Writing, building, installing, and testing Go code](https://www.youtube.com/watch?v=XCsL89YtqCs)
 * [Golang Blog](https://blog.golang.org/)
 * [7 common mistakes in Go and when to avoid them by Steve Francia (Docker)](https://www.youtube.com/watch?v=29LLRKIL_TI)
 * [Building Services in Go](https://www.youtube.com/watch?v=MeOK1UzGHYw)
