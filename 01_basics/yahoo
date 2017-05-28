@@ -1,0 +1,9 @@
+found: http://golang.org/ "The Go Programming Language"
+found: http://golang.org/pkg/ "Packages"
+not found: http://golang.org/cmd/
+res = {The Go Programming Language [http://golang.org/pkg/ http://golang.org/cmd/]}
+res = {Packages [http://golang.org/ http://golang.org/cmd/ http://golang.org/pkg/fmt/ http://golang.org/pkg/os/]}
+found: http://golang.org/pkg/os/ "Package os"
+res = {Package os [http://golang.org/ http://golang.org/pkg/]}
+found: http://golang.org/pkg/fmt/ "Package fmt"
+res = {Package fmt [http://golang.org/ http://golang.org/pkg/]}
