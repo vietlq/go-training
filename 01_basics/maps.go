@@ -30,4 +30,13 @@ func main() {
     fmt.Println(m);
     fmt.Println(m2);
     fmt.Println(m3);
+
+    // Retrieve an element
+    elem := m2["Google"]
+    // Delete an element
+    delete(m, "Bell Labs")
+    delete(m, "Google")
+    // Test if a key is present
+    elem, ok := m["Yahoo"]
+    fmt.Println("The value:", elem, "Present?", ok)
 }
