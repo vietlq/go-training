@@ -18,6 +18,12 @@ func main() {
     // Drop first 2 values
     s = s[2:]
     printSlice(s)
+
+    var v []int
+    fmt.Println(v, len(v), cap(v))
+    if v == nil {
+        fmt.Println("Nil slice!")
+    }
 }
 
 func printSlice(s []int) {
