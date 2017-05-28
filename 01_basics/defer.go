@@ -3,6 +3,7 @@ package main
 import "fmt"
 
 func main() {
+    // https://blog.golang.org/defer-panic-and-recover
     defer fmt.Println("world")
     defer fmt.Println("yahoo")
 
