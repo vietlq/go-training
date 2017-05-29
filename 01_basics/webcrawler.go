@@ -26,44 +26,60 @@ type FetchResult struct {
     urls []string
 }
 
-func ExtractHref(z *html.Tokenizer) string {
+func ExtractAttr(z *html.Tokenizer, targetAttr string) string {
     key, val, moreAttr := z.TagAttr()
     attr := string(key)
-    for len(attr) > 0 && attr != "href" && moreAttr {
+    for len(attr) > 0 && attr != targetAttr && moreAttr {
         key, val, moreAttr = z.TagAttr()
         attr = string(key)
     }
 
-    if attr == "href" {
+    if attr == targetAttr {
         return string(val)
     }
 
     return ""
 }
 
-func ExtractLinks(r io.Reader) []string {
+func ExtractLinks(r io.Reader) (urls []string, imgs []string, scripts []string) {
     z := html.NewTokenizer(r)
-    urls := []string{}
 
     for {
         tt := z.Next()
 
         switch tt {
         case html.ErrorToken:
-            return urls
+            return urls, imgs, scripts
         case html.StartTagToken:
-            tn, _ := z.TagName()
-            // Extract HREF from A
-            if len(tn) == 1 && tn[0] == 'a' {
-                url := ExtractHref(z)
+            tn, ok := z.TagName()
+            if !ok {
+                continue
+            }
+            tagName := string(tn)
+            switch tagName {
+            case "a":
+                // Extract HREF from A
+                url := ExtractAttr(z, "href")
                 if (len(url) > 0) {
                     urls = append(urls, url)
+                }
+            case "img":
+                // Extract SRC from IMG
+                url := ExtractAttr(z, "src")
+                if (len(url) > 0) {
+                    imgs = append(imgs, url)
+                }
+            case "script":
+                // Extract SRC from IMG
+                url := ExtractAttr(z, "src")
+                if (len(url) > 0) {
+                    scripts = append(scripts, url)
                 }
             }
         }
     }
 
-    return urls
+    return urls, imgs, scripts
 }
 
 func (f *PageFetcher) Fetch(url string) (string, []string, error) {
@@ -80,7 +96,8 @@ func (f *PageFetcher) Fetch(url string) (string, []string, error) {
     // Read the response body
     defer resp.Body.Close()
     // Extract URLs
-    urls := ExtractLinks(resp.Body)
+    urls, imgs, _ := ExtractLinks(resp.Body)
+    fmt.Println(imgs)
 
     return "string(body)", urls, nil
 }
