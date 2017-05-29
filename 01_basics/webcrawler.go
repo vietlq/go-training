@@ -77,9 +77,16 @@ func NormaliseUrl(refUrl *url.URL, curUrl string) string {
     }
 
     // Make sure we have valid URL
-    _, err := url.Parse(curUrl)
+    u, err := url.Parse(curUrl)
     if err != nil {
         return ""
+    }
+
+    // Handle relative URLs
+    if u.Scheme == "" {
+        tpath := refUrl.Path
+        lidx := strings.LastIndex(tpath, "/")
+        return fmt.Sprintf("%s://%s%s/%s", refUrl.Scheme, refUrl.Host, tpath[:lidx], u.Path)
     }
 
     return curUrl
@@ -240,6 +247,8 @@ func implementation(depth int, seeds []string) {
             fmt.Println("Got result with URLs:", len(res.urls))
         }
     }
+
+    fmt.Println("Total links visited:", len(visitDict.visits))
 }
 
 func UsageExit() {
