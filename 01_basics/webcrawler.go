@@ -66,7 +66,7 @@ func ExtractLinks(r io.Reader) []string {
     return urls
 }
 
-func (f PageFetcher) Fetch(url string) (string, []string, error) {
+func (f *PageFetcher) Fetch(url string) (string, []string, error) {
     // Use the cache
     if res, ok := f.visited[url]; ok {
         return res.body, res.urls, nil
@@ -143,10 +143,8 @@ func monitorWorker(wg *sync.WaitGroup, ch chan FetchResult) {
     close(ch)
 }
 
-// fetcher is a populated PageFetcher.
-var fetcher = PageFetcher{visited: make(map[string]*FetchResult)}
-
 func implementation(depth int, seeds []string) {
+    fetcher := PageFetcher{visited: make(map[string]*FetchResult)}
     visitDict := VisitDict{visits: make(map[string]bool)}
     ch := make(chan FetchResult)
     wg := &sync.WaitGroup{}
@@ -154,7 +152,7 @@ func implementation(depth int, seeds []string) {
     // Launch the workers based on seed URLs
     for _, url := range seeds {
         wg.Add(1)
-        go Crawl(url, depth, fetcher, &visitDict, ch, wg)
+        go Crawl(url, depth, &fetcher, &visitDict, ch, wg)
     }
 
     // Monitor the workers
