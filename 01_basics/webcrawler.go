@@ -37,7 +37,6 @@ func (f PageFetcher) Fetch(url string) (string, []string, error) {
     // Now extract URLs
     defer resp.Body.Close()
     body, err := ioutil.ReadAll(resp.Body)
-    fmt.Println(resp, body)
 
     return string(body), nil, nil
 }
@@ -85,7 +84,7 @@ func Crawl(url string, depth int,
         return
     }
 
-    fmt.Printf("found: %s %q\n", url, body)
+    fmt.Printf("found: %s\n", url)
     ch <- FetchResult{body, urls}
 
     for _, u := range urls {
@@ -124,7 +123,7 @@ func implementation(seeds []string) {
             if !ok {
                 return
             }
-            fmt.Println("res =", res)
+            fmt.Println("Got result with URLs:", len(res.urls))
         }
     }
 }
