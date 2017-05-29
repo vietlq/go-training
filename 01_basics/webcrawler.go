@@ -42,7 +42,7 @@ func ExtractAttr(z *html.Tokenizer, targetAttr string) string {
 }
 
 func ExtractLinkCssHref(z *html.Tokenizer) string {
-    attrs = make(map[string]string)
+    attrs := make(map[string]string)
 
     key, val, moreAttr := z.TagAttr();
     for moreAttr {
@@ -60,7 +60,7 @@ func ExtractLinkCssHref(z *html.Tokenizer) string {
     return ""
 }
 
-func ExtractLinks(r io.Reader) (urls []string, imgs []string, scripts []string) {
+func ExtractLinks(r io.Reader) (urls []string, imgs []string, scripts []string, styles []string) {
     z := html.NewTokenizer(r)
 
     for {
@@ -68,7 +68,7 @@ func ExtractLinks(r io.Reader) (urls []string, imgs []string, scripts []string) 
 
         switch tt {
         case html.ErrorToken:
-            return urls, imgs, scripts
+            return urls, imgs, scripts, styles
         case html.StartTagToken:
             tn, ok := z.TagName()
             if !ok {
@@ -96,11 +96,15 @@ func ExtractLinks(r io.Reader) (urls []string, imgs []string, scripts []string) 
                 }
             case "link":
                 // Extract CSS HREF from LINK with REL="stylesheet"
+                url := ExtractLinkCssHref(z)
+                if (len(url) > 0) {
+                    styles = append(styles, url)
+                }
             }
         }
     }
 
-    return urls, imgs, scripts
+    return urls, imgs, scripts, styles
 }
 
 func (f *PageFetcher) Fetch(url string) (string, []string, error) {
@@ -117,8 +121,8 @@ func (f *PageFetcher) Fetch(url string) (string, []string, error) {
     // Read the response body
     defer resp.Body.Close()
     // Extract URLs
-    urls, imgs, _ := ExtractLinks(resp.Body)
-    fmt.Println(imgs)
+    urls, imgs, _, scripts := ExtractLinks(resp.Body)
+    fmt.Println(imgs, scripts)
 
     return "string(body)", urls, nil
 }
