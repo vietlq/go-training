@@ -6,6 +6,7 @@ import (
     "os"
     "net/http"
     "io"
+    "strconv"
     //"io/ioutil"
     "golang.org/x/net/html"
 )
@@ -145,7 +146,7 @@ func monitorWorker(wg *sync.WaitGroup, ch chan FetchResult) {
 // fetcher is a populated PageFetcher.
 var fetcher = PageFetcher{visited: make(map[string]*FetchResult)}
 
-func implementation(seeds []string) {
+func implementation(depth int, seeds []string) {
     visitDict := VisitDict{visits: make(map[string]bool)}
     ch := make(chan FetchResult)
     wg := &sync.WaitGroup{}
@@ -153,7 +154,7 @@ func implementation(seeds []string) {
     // Launch the workers based on seed URLs
     for _, url := range seeds {
         wg.Add(1)
-        go Crawl(url, 4, fetcher, &visitDict, ch, wg)
+        go Crawl(url, depth, fetcher, &visitDict, ch, wg)
     }
 
     // Monitor the workers
@@ -171,10 +172,18 @@ func implementation(seeds []string) {
     }
 }
 
+func UsageExit() {
+    fmt.Println("Usage: Program Depth <'URLs'> <'separated'> <'by'> <'space'>")
+    os.Exit(-1)
+}
+
 func main() {
-    if (len(os.Args) < 2) {
-        fmt.Println("Usage: Program <'URLs'> <'separated'> <'by'> <'space'>")
-        os.Exit(-1)
+    if (len(os.Args) < 3) {
+        UsageExit()
     }
-    implementation(os.Args[1:])
+    depth, err := strconv.Atoi(os.Args[1])
+    if err != nil {
+        UsageExit()
+    }
+    implementation(depth, os.Args[2:])
 }
