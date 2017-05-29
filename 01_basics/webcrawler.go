@@ -2,19 +2,21 @@ package main
 
 import (
     "fmt"
-    "sync"
+    "io"
     "os"
     "net/http"
-    "io"
+    "net/url"
     "strconv"
-    //"io/ioutil"
+    "strings"
+    "sync"
     "golang.org/x/net/html"
+    //"io/ioutil"
 )
 
 type Fetcher interface {
     // Fetch returns the body of URL and
     // a slice of URLs found on that page.
-    Fetch(url string) (body string, urls []string, err error)
+    Fetch(curUrl string) (body string, urls []string, err error)
 }
 // PageFetcher is Fetcher that returns canned results.
 type PageFetcher struct {
@@ -35,7 +37,7 @@ func ExtractAttr(z *html.Tokenizer, targetAttr string) string {
     }
 
     if attr == targetAttr {
-        return string(val)
+        return strings.Trim(string(val), " \t\n")
     }
 
     return ""
@@ -53,15 +55,39 @@ func ExtractLinkCssHref(z *html.Tokenizer) string {
 
     if val, ok := attrs["rel"]; ok && val == "stylesheet" {
         if val, ok = attrs["href"]; ok {
-            return val
+            return strings.Trim(val, " \t\n")
         }
-        return ""
     }
     return ""
 }
 
-func ExtractLinks(r io.Reader) (urls []string, imgs []string, scripts []string, styles []string) {
+func NormaliseUrl(refUrl *url.URL, curUrl string) string {
+    if curUrl == "" {
+        return ""
+    }
+
+    // Infer HTTP or HTTPS
+    if len(curUrl) >= 2 && curUrl[:2] == "//" {
+        return fmt.Sprintf("%s:%s", refUrl.Scheme, curUrl)
+    }
+
+    // Use the front part of refUrl
+    if curUrl[0] == '/' {
+        return fmt.Sprintf("%s://%s%s", refUrl.Scheme, refUrl.Host, curUrl)
+    }
+
+    // Make sure we have valid URL
+    _, err := url.Parse(curUrl)
+    if err != nil {
+        return ""
+    }
+
+    return curUrl
+}
+
+func ExtractLinks(refUrl string, r io.Reader) (urls []string, imgs []string, scripts []string, styles []string) {
     z := html.NewTokenizer(r)
+    parsedRefUrl, _ := url.Parse(refUrl)
 
     for {
         tt := z.Next()
@@ -78,27 +104,31 @@ func ExtractLinks(r io.Reader) (urls []string, imgs []string, scripts []string, 
             switch tagName {
             case "a":
                 // Extract HREF from A
-                url := ExtractAttr(z, "href")
-                if (len(url) > 0) {
-                    urls = append(urls, url)
+                curUrl := ExtractAttr(z, "href")
+                curUrl = NormaliseUrl(parsedRefUrl, curUrl)
+                if (len(curUrl) > 0) {
+                    urls = append(urls, curUrl)
                 }
             case "img":
                 // Extract SRC from IMG
-                url := ExtractAttr(z, "src")
-                if (len(url) > 0) {
-                    imgs = append(imgs, url)
+                curUrl := ExtractAttr(z, "src")
+                curUrl = NormaliseUrl(parsedRefUrl, curUrl)
+                if (len(curUrl) > 0) {
+                    imgs = append(imgs, curUrl)
                 }
             case "script":
                 // Extract SRC from SCRIPT
-                url := ExtractAttr(z, "src")
-                if (len(url) > 0) {
-                    scripts = append(scripts, url)
+                curUrl := ExtractAttr(z, "src")
+                curUrl = NormaliseUrl(parsedRefUrl, curUrl)
+                if (len(curUrl) > 0) {
+                    scripts = append(scripts, curUrl)
                 }
             case "link":
                 // Extract CSS HREF from LINK with REL="stylesheet"
-                url := ExtractLinkCssHref(z)
-                if (len(url) > 0) {
-                    styles = append(styles, url)
+                curUrl := ExtractLinkCssHref(z)
+                curUrl = NormaliseUrl(parsedRefUrl, curUrl)
+                if (len(curUrl) > 0) {
+                    styles = append(styles, curUrl)
                 }
             }
         }
@@ -107,21 +137,21 @@ func ExtractLinks(r io.Reader) (urls []string, imgs []string, scripts []string, 
     return urls, imgs, scripts, styles
 }
 
-func (f *PageFetcher) Fetch(url string) (string, []string, error) {
+func (f *PageFetcher) Fetch(curUrl string) (string, []string, error) {
     // Use the cache
-    if res, ok := f.visited[url]; ok {
+    if res, ok := f.visited[curUrl]; ok {
         return res.body, res.urls, nil
     }
     // Fetch if not in cache
-    resp, err := http.Get(url)
+    resp, err := http.Get(curUrl)
     // Report error
     if err != nil {
-        return "", nil, fmt.Errorf("not found: %s", url)
+        return "", nil, fmt.Errorf("not found: %s", curUrl)
     }
     // Read the response body
     defer resp.Body.Close()
     // Extract URLs
-    urls, imgs, _, scripts := ExtractLinks(resp.Body)
+    urls, imgs, _, scripts := ExtractLinks(curUrl, resp.Body)
     fmt.Println(imgs, scripts)
 
     return "string(body)", urls, nil
@@ -132,23 +162,23 @@ type VisitDict struct {
     mux    sync.RWMutex
 }
 
-func (vd *VisitDict) Visited(url string) bool {
+func (vd *VisitDict) Visited(curUrl string) bool {
     vd.mux.RLock()
     defer vd.mux.RUnlock()
     // https://blog.golang.org/go-maps-in-action
-    _, ok := vd.visits[url]
+    _, ok := vd.visits[curUrl]
     return ok
 }
 
-func (vd *VisitDict) Visit(url string) {
+func (vd *VisitDict) Visit(curUrl string) {
     vd.mux.Lock()
-    vd.visits[url] = true
+    vd.visits[curUrl] = true
     vd.mux.Unlock()
 }
 
 // Crawl uses fetcher to recursively crawl
-// pages starting with url, to a maximum of depth.
-func Crawl(url string, depth int,
+// pages starting with curUrl, to a maximum of depth.
+func Crawl(curUrl string, depth int,
     fetcher Fetcher, visitDict *VisitDict,
     ch chan FetchResult, wg *sync.WaitGroup) {
     // https://stackoverflow.com/questions/19892732/all-goroutines-are-asleep-deadlock
@@ -159,18 +189,18 @@ func Crawl(url string, depth int,
     }
 
     // Don't visit if already done so
-    if visitDict.Visited(url) {
+    if visitDict.Visited(curUrl) {
         return
     }
-    visitDict.Visit(url)
+    visitDict.Visit(curUrl)
 
-    body, urls, err := fetcher.Fetch(url)
+    body, urls, err := fetcher.Fetch(curUrl)
     if err != nil {
         fmt.Println(err)
         return
     }
 
-    fmt.Printf("found: %s\n", url)
+    fmt.Printf("found: %s\n", curUrl)
     ch <- FetchResult{body, urls}
 
     for _, u := range urls {
@@ -192,9 +222,9 @@ func implementation(depth int, seeds []string) {
     wg := &sync.WaitGroup{}
 
     // Launch the workers based on seed URLs
-    for _, url := range seeds {
+    for _, curUrl := range seeds {
         wg.Add(1)
-        go Crawl(url, depth, &fetcher, &visitDict, ch, wg)
+        go Crawl(curUrl, depth, &fetcher, &visitDict, ch, wg)
     }
 
     // Monitor the workers
