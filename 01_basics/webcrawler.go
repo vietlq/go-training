@@ -5,7 +5,9 @@ import (
     "sync"
     "os"
     "net/http"
-    "io/ioutil"
+    "io"
+    //"io/ioutil"
+    "golang.org/x/net/html"
 )
 
 type Fetcher interface {
@@ -23,6 +25,37 @@ type FetchResult struct {
     urls []string
 }
 
+func ExtractLinks(r io.Reader) []string {
+    z := html.NewTokenizer(r)
+    urls := []string{}
+
+    for {
+        tt := z.Next()
+
+        switch tt {
+        case html.ErrorToken:
+            return urls
+        case html.StartTagToken:
+            tn, _ := z.TagName()
+            if len(tn) == 1 && tn[0] == 'a' {
+                key, val, moreAttr := z.TagAttr()
+                attr := string(key)
+                for len(attr) > 0 && attr != "href" && moreAttr {
+                    key, val, moreAttr = z.TagAttr()
+                    attr = string(key)
+                }
+
+                if attr == "href" {
+                    urls = append(urls, string(val))
+                    fmt.Println(string(val))
+                }
+            }
+        }
+    }
+
+    return urls
+}
+
 func (f PageFetcher) Fetch(url string) (string, []string, error) {
     // Use the cache
     if res, ok := f.visited[url]; ok {
@@ -34,11 +67,12 @@ func (f PageFetcher) Fetch(url string) (string, []string, error) {
     if err != nil {
         return "", nil, fmt.Errorf("not found: %s", url)
     }
-    // Now extract URLs
+    // Read the response body
     defer resp.Body.Close()
-    body, err := ioutil.ReadAll(resp.Body)
+    // Extract URLs
+    urls := ExtractLinks(resp.Body)
 
-    return string(body), nil, nil
+    return "string(body)", urls, nil
 }
 
 type VisitDict struct {
