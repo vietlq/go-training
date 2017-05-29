@@ -11,6 +11,7 @@ import (
     "sync"
     "golang.org/x/net/html"
     //"io/ioutil"
+    "wcutil"
 )
 
 type Fetcher interface {
@@ -61,37 +62,6 @@ func ExtractLinkCssHref(z *html.Tokenizer) string {
     return ""
 }
 
-func NormaliseUrl(refUrl *url.URL, curUrl string) string {
-    if curUrl == "" {
-        return ""
-    }
-
-    // Infer HTTP or HTTPS
-    if len(curUrl) >= 2 && curUrl[:2] == "//" {
-        return fmt.Sprintf("%s:%s", refUrl.Scheme, curUrl)
-    }
-
-    // Use the front part of refUrl
-    if curUrl[0] == '/' {
-        return fmt.Sprintf("%s://%s%s", refUrl.Scheme, refUrl.Host, curUrl)
-    }
-
-    // Make sure we have valid URL
-    u, err := url.Parse(curUrl)
-    if err != nil {
-        return ""
-    }
-
-    // Handle relative URLs
-    if u.Scheme == "" {
-        tpath := refUrl.Path
-        lidx := strings.LastIndex(tpath, "/")
-        return fmt.Sprintf("%s://%s%s/%s", refUrl.Scheme, refUrl.Host, tpath[:lidx], u.Path)
-    }
-
-    return curUrl
-}
-
 func ExtractLinks(refUrl string, r io.Reader) (urls []string, imgs []string, scripts []string, styles []string) {
     z := html.NewTokenizer(r)
     parsedRefUrl, _ := url.Parse(refUrl)
@@ -112,28 +82,28 @@ func ExtractLinks(refUrl string, r io.Reader) (urls []string, imgs []string, scr
             case "a":
                 // Extract HREF from A
                 curUrl := ExtractAttr(z, "href")
-                curUrl = NormaliseUrl(parsedRefUrl, curUrl)
+                curUrl = wcutil.NormaliseUrl(parsedRefUrl, curUrl)
                 if (len(curUrl) > 0) {
                     urls = append(urls, curUrl)
                 }
             case "img":
                 // Extract SRC from IMG
                 curUrl := ExtractAttr(z, "src")
-                curUrl = NormaliseUrl(parsedRefUrl, curUrl)
+                curUrl = wcutil.NormaliseUrl(parsedRefUrl, curUrl)
                 if (len(curUrl) > 0) {
                     imgs = append(imgs, curUrl)
                 }
             case "script":
                 // Extract SRC from SCRIPT
                 curUrl := ExtractAttr(z, "src")
-                curUrl = NormaliseUrl(parsedRefUrl, curUrl)
+                curUrl = wcutil.NormaliseUrl(parsedRefUrl, curUrl)
                 if (len(curUrl) > 0) {
                     scripts = append(scripts, curUrl)
                 }
             case "link":
                 // Extract CSS HREF from LINK with REL="stylesheet"
                 curUrl := ExtractLinkCssHref(z)
-                curUrl = NormaliseUrl(parsedRefUrl, curUrl)
+                curUrl = wcutil.NormaliseUrl(parsedRefUrl, curUrl)
                 if (len(curUrl) > 0) {
                     styles = append(styles, curUrl)
                 }

@@ -1,4 +1,4 @@
-package normalise_url
+package wcutil
 
 import (
     "testing"
