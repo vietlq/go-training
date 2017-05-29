@@ -25,6 +25,21 @@ type FetchResult struct {
     urls []string
 }
 
+func ExtractHref(z *html.Tokenizer) string {
+    key, val, moreAttr := z.TagAttr()
+    attr := string(key)
+    for len(attr) > 0 && attr != "href" && moreAttr {
+        key, val, moreAttr = z.TagAttr()
+        attr = string(key)
+    }
+
+    if attr == "href" {
+        return string(val)
+    }
+
+    return ""
+}
+
 func ExtractLinks(r io.Reader) []string {
     z := html.NewTokenizer(r)
     urls := []string{}
@@ -37,17 +52,11 @@ func ExtractLinks(r io.Reader) []string {
             return urls
         case html.StartTagToken:
             tn, _ := z.TagName()
+            // Extract HREF from A
             if len(tn) == 1 && tn[0] == 'a' {
-                key, val, moreAttr := z.TagAttr()
-                attr := string(key)
-                for len(attr) > 0 && attr != "href" && moreAttr {
-                    key, val, moreAttr = z.TagAttr()
-                    attr = string(key)
-                }
-
-                if attr == "href" {
-                    urls = append(urls, string(val))
-                    fmt.Println(string(val))
+                url := ExtractHref(z)
+                if (len(url) > 0) {
+                    urls = append(urls, url)
                 }
             }
         }
