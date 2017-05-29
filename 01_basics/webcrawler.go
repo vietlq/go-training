@@ -41,6 +41,25 @@ func ExtractAttr(z *html.Tokenizer, targetAttr string) string {
     return ""
 }
 
+func ExtractLinkCssHref(z *html.Tokenizer) string {
+    attrs = make(map[string]string)
+
+    key, val, moreAttr := z.TagAttr();
+    for moreAttr {
+        attrs[string(key)] = string(val)
+        key, val, moreAttr = z.TagAttr();
+    }
+    attrs[string(key)] = string(val)
+
+    if val, ok := attrs["rel"]; ok && val == "stylesheet" {
+        if val, ok = attrs["href"]; ok {
+            return val
+        }
+        return ""
+    }
+    return ""
+}
+
 func ExtractLinks(r io.Reader) (urls []string, imgs []string, scripts []string) {
     z := html.NewTokenizer(r)
 
@@ -70,11 +89,13 @@ func ExtractLinks(r io.Reader) (urls []string, imgs []string, scripts []string) 
                     imgs = append(imgs, url)
                 }
             case "script":
-                // Extract SRC from IMG
+                // Extract SRC from SCRIPT
                 url := ExtractAttr(z, "src")
                 if (len(url) > 0) {
                     scripts = append(scripts, url)
                 }
+            case "link":
+                // Extract CSS HREF from LINK with REL="stylesheet"
             }
         }
     }
