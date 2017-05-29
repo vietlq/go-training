@@ -3,12 +3,43 @@ package main
 import (
     "fmt"
     "sync"
+    "os"
+    "net/http"
+    "io/ioutil"
 )
 
 type Fetcher interface {
     // Fetch returns the body of URL and
     // a slice of URLs found on that page.
     Fetch(url string) (body string, urls []string, err error)
+}
+// PageFetcher is Fetcher that returns canned results.
+type PageFetcher struct {
+    visited map[string]*FetchResult
+}
+
+type FetchResult struct {
+    body string
+    urls []string
+}
+
+func (f PageFetcher) Fetch(url string) (string, []string, error) {
+    // Use the cache
+    if res, ok := f.visited[url]; ok {
+        return res.body, res.urls, nil
+    }
+    // Fetch if not in cache
+    resp, err := http.Get(url)
+    // Report error
+    if err != nil {
+        return "", nil, fmt.Errorf("not found: %s", url)
+    }
+    // Now extract URLs
+    defer resp.Body.Close()
+    body, err := ioutil.ReadAll(resp.Body)
+    fmt.Println(resp, body)
+
+    return string(body), nil, nil
 }
 
 type VisitDict struct {
@@ -34,7 +65,7 @@ func (vd *VisitDict) Visit(url string) {
 // pages starting with url, to a maximum of depth.
 func Crawl(url string, depth int,
     fetcher Fetcher, visitDict *VisitDict,
-    ch chan fakeResult, wg *sync.WaitGroup) {
+    ch chan FetchResult, wg *sync.WaitGroup) {
     // https://stackoverflow.com/questions/19892732/all-goroutines-are-asleep-deadlock
     defer wg.Done()
 
@@ -55,7 +86,7 @@ func Crawl(url string, depth int,
     }
 
     fmt.Printf("found: %s %q\n", url, body)
-    ch <- fakeResult{body, urls}
+    ch <- FetchResult{body, urls}
 
     for _, u := range urls {
         wg.Add(1)
@@ -64,20 +95,29 @@ func Crawl(url string, depth int,
     return
 }
 
-func monitorWorker(wg *sync.WaitGroup, ch chan fakeResult) {
+func monitorWorker(wg *sync.WaitGroup, ch chan FetchResult) {
     wg.Wait()
     close(ch)
 }
 
-func implementation() {
+// fetcher is a populated PageFetcher.
+var fetcher = PageFetcher{visited: make(map[string]*FetchResult)}
+
+func implementation(seeds []string) {
     visitDict := VisitDict{visits: make(map[string]bool)}
-    ch := make(chan fakeResult)
+    ch := make(chan FetchResult)
     wg := &sync.WaitGroup{}
 
-    wg.Add(1)
-    go Crawl("http://golang.org/", 4, fetcher, &visitDict, ch, wg)
+    // Launch the workers based on seed URLs
+    for _, url := range seeds {
+        wg.Add(1)
+        go Crawl(url, 4, fetcher, &visitDict, ch, wg)
+    }
+
+    // Monitor the workers
     go monitorWorker(wg, ch)
 
+    // Wait and reap results
     for {
         select {
         case res, ok := <-ch:
@@ -90,54 +130,9 @@ func implementation() {
 }
 
 func main() {
-    implementation()
-}
-
-// fakeFetcher is Fetcher that returns canned results.
-type fakeFetcher map[string]*fakeResult
-
-type fakeResult struct {
-    body string
-    urls []string
-}
-
-func (f fakeFetcher) Fetch(url string) (string, []string, error) {
-    if res, ok := f[url]; ok {
-        return res.body, res.urls, nil
+    if (len(os.Args) < 2) {
+        fmt.Println("Usage: Program <'URLs'> <'separated'> <'by'> <'space'>")
+        os.Exit(-1)
     }
-    return "", nil, fmt.Errorf("not found: %s", url)
-}
-
-// fetcher is a populated fakeFetcher.
-var fetcher = fakeFetcher{
-    "http://golang.org/": &fakeResult{
-        "The Go Programming Language",
-        []string{
-            "http://golang.org/pkg/",
-            "http://golang.org/cmd/",
-        },
-    },
-    "http://golang.org/pkg/": &fakeResult{
-        "Packages",
-        []string{
-            "http://golang.org/",
-            "http://golang.org/cmd/",
-            "http://golang.org/pkg/fmt/",
-            "http://golang.org/pkg/os/",
-        },
-    },
-    "http://golang.org/pkg/fmt/": &fakeResult{
-        "Package fmt",
-        []string{
-            "http://golang.org/",
-            "http://golang.org/pkg/",
-        },
-    },
-    "http://golang.org/pkg/os/": &fakeResult{
-        "Package os",
-        []string{
-            "http://golang.org/",
-            "http://golang.org/pkg/",
-        },
-    },
+    implementation(os.Args[1:])
 }
