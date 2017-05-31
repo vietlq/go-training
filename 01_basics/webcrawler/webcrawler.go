@@ -34,6 +34,13 @@ type VisitDict struct {
     mux    sync.RWMutex
 }
 
+type ExtractedLinks struct {
+    urls    []string
+    imgs    []string
+    scripts []string
+    styles  []string
+}
+
 func main() {
     if (len(os.Args) < 3) {
         UsageExit()
@@ -151,7 +158,7 @@ func ExtractLinkCssHref(z *html.Tokenizer) string {
     return ""
 }
 
-func ExtractLinks(refUrl string, r io.Reader) (urls []string, imgs []string, scripts []string, styles []string) {
+func ExtractLinks(refUrl string, r io.Reader) (resLinks ExtractedLinks) {
     z := html.NewTokenizer(r)
     parsedRefUrl, _ := url.Parse(refUrl)
 
@@ -160,7 +167,7 @@ func ExtractLinks(refUrl string, r io.Reader) (urls []string, imgs []string, scr
 
         switch tt {
         case html.ErrorToken:
-            return urls, imgs, scripts, styles
+            return
         case html.StartTagToken:
             tn, ok := z.TagName()
             if !ok {
@@ -173,34 +180,34 @@ func ExtractLinks(refUrl string, r io.Reader) (urls []string, imgs []string, scr
                 curUrl := ExtractAttr(z, "href")
                 curUrl = wcutil.NormaliseUrl(parsedRefUrl, curUrl)
                 if (len(curUrl) > 0) {
-                    urls = append(urls, curUrl)
+                    resLinks.urls = append(resLinks.urls, curUrl)
                 }
             case "img":
                 // Extract SRC from IMG
                 curUrl := ExtractAttr(z, "src")
                 curUrl = wcutil.NormaliseUrl(parsedRefUrl, curUrl)
                 if (len(curUrl) > 0) {
-                    imgs = append(imgs, curUrl)
+                    resLinks.imgs = append(resLinks.imgs, curUrl)
                 }
             case "script":
                 // Extract SRC from SCRIPT
                 curUrl := ExtractAttr(z, "src")
                 curUrl = wcutil.NormaliseUrl(parsedRefUrl, curUrl)
                 if (len(curUrl) > 0) {
-                    scripts = append(scripts, curUrl)
+                    resLinks.scripts = append(resLinks.scripts, curUrl)
                 }
             case "link":
                 // Extract CSS HREF from LINK with REL="stylesheet"
                 curUrl := ExtractLinkCssHref(z)
                 curUrl = wcutil.NormaliseUrl(parsedRefUrl, curUrl)
                 if (len(curUrl) > 0) {
-                    styles = append(styles, curUrl)
+                    resLinks.styles = append(resLinks.styles, curUrl)
                 }
             }
         }
     }
 
-    return urls, imgs, scripts, styles
+    return
 }
 
 func (f *PageFetcher) Fetch(curUrl string) (string, []string, error) {
@@ -217,10 +224,10 @@ func (f *PageFetcher) Fetch(curUrl string) (string, []string, error) {
     // Read the response body
     defer resp.Body.Close()
     // Extract URLs
-    urls, imgs, _, scripts := ExtractLinks(curUrl, resp.Body)
-    fmt.Println(imgs, scripts)
+    resLinks := ExtractLinks(curUrl, resp.Body)
+    fmt.Println(resLinks.imgs, resLinks.scripts)
 
-    return "string(body)", urls, nil
+    return "string(body)", resLinks.urls, nil
 }
 
 func (vd *VisitDict) Visited(curUrl string) bool {
