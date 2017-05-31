@@ -161,7 +161,6 @@ func CheckFetchErrors(curUrl string, header http.Header) error {
 
     // Check the Content-Length
     val, ok = header["Content-Length"]
-    fmt.Printf("Content-Length: val = %s, curUrl = %s\n", val, curUrl)
     const MAX_CONTENT_LEN = 1024*1024
     if ok {
         contentLen, convErr := strconv.Atoi(val[0])
