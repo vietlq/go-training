@@ -10,3 +10,4 @@
 * [Building Services in Go](https://www.youtube.com/watch?v=MeOK1UzGHYw)
 * [Build Web Apps with Go Language (golang)](https://www.youtube.com/watch?v=Vlie-srOU8c)
 * [Mastering Chaos - A Netflix Guide to Microservices](https://www.youtube.com/watch?v=CZ3wIuvmHeM&t=11s)
+* [Exported/Unexported Identifiers In Go](https://www.goinggo.net/2014/03/exportedunexported-identifiers-in-go.html)
