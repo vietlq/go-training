@@ -29,6 +29,95 @@ type FetchResult struct {
     urls []string
 }
 
+type VisitDict struct {
+    visits map[string]bool
+    mux    sync.RWMutex
+}
+
+func main() {
+    if (len(os.Args) < 3) {
+        UsageExit()
+    }
+    depth, err := strconv.Atoi(os.Args[1])
+    if err != nil {
+        UsageExit()
+    }
+    implementation(depth, os.Args[2:])
+}
+
+func UsageExit() {
+    fmt.Println("Usage: Program Depth <'URLs'> <'separated'> <'by'> <'space'>")
+    os.Exit(-1)
+}
+
+func implementation(depth int, seeds []string) {
+    fetcher := PageFetcher{visited: make(map[string]*FetchResult)}
+    visitDict := VisitDict{visits: make(map[string]bool)}
+    ch := make(chan FetchResult)
+    wg := &sync.WaitGroup{}
+
+    // Launch the workers based on seed URLs
+    for _, curUrl := range seeds {
+        wg.Add(1)
+        go Crawl(curUrl, depth, &fetcher, &visitDict, ch, wg)
+    }
+
+    // Monitor the workers
+    go monitorWorker(wg, ch)
+
+    // Wait and reap results
+    for {
+        select {
+        case res, ok := <-ch:
+            if !ok {
+                return
+            }
+            fmt.Println("Got result with URLs:", len(res.urls))
+        }
+    }
+
+    fmt.Println("Total links visited:", len(visitDict.visits))
+}
+
+// Crawl uses fetcher to recursively crawl
+// pages starting with curUrl, to a maximum of depth.
+func Crawl(curUrl string, depth int,
+    fetcher Fetcher, visitDict *VisitDict,
+    ch chan FetchResult, wg *sync.WaitGroup) {
+    // https://stackoverflow.com/questions/19892732/all-goroutines-are-asleep-deadlock
+    defer wg.Done()
+
+    if depth <= 0 {
+        return
+    }
+
+    // Don't visit if already done so
+    if visitDict.Visited(curUrl) {
+        return
+    }
+    visitDict.Visit(curUrl)
+
+    body, urls, err := fetcher.Fetch(curUrl)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+
+    fmt.Printf("found: %s\n", curUrl)
+    ch <- FetchResult{body, urls}
+
+    for _, u := range urls {
+        wg.Add(1)
+        go Crawl(u, depth-1, fetcher, visitDict, ch, wg)
+    }
+    return
+}
+
+func monitorWorker(wg *sync.WaitGroup, ch chan FetchResult) {
+    wg.Wait()
+    close(ch)
+}
+
 func ExtractAttr(z *html.Tokenizer, targetAttr string) string {
     key, val, moreAttr := z.TagAttr()
     attr := string(key)
@@ -134,11 +223,6 @@ func (f *PageFetcher) Fetch(curUrl string) (string, []string, error) {
     return "string(body)", urls, nil
 }
 
-type VisitDict struct {
-    visits map[string]bool
-    mux    sync.RWMutex
-}
-
 func (vd *VisitDict) Visited(curUrl string) bool {
     vd.mux.RLock()
     defer vd.mux.RUnlock()
@@ -151,88 +235,4 @@ func (vd *VisitDict) Visit(curUrl string) {
     vd.mux.Lock()
     vd.visits[curUrl] = true
     vd.mux.Unlock()
-}
-
-// Crawl uses fetcher to recursively crawl
-// pages starting with curUrl, to a maximum of depth.
-func Crawl(curUrl string, depth int,
-    fetcher Fetcher, visitDict *VisitDict,
-    ch chan FetchResult, wg *sync.WaitGroup) {
-    // https://stackoverflow.com/questions/19892732/all-goroutines-are-asleep-deadlock
-    defer wg.Done()
-
-    if depth <= 0 {
-        return
-    }
-
-    // Don't visit if already done so
-    if visitDict.Visited(curUrl) {
-        return
-    }
-    visitDict.Visit(curUrl)
-
-    body, urls, err := fetcher.Fetch(curUrl)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-
-    fmt.Printf("found: %s\n", curUrl)
-    ch <- FetchResult{body, urls}
-
-    for _, u := range urls {
-        wg.Add(1)
-        go Crawl(u, depth-1, fetcher, visitDict, ch, wg)
-    }
-    return
-}
-
-func monitorWorker(wg *sync.WaitGroup, ch chan FetchResult) {
-    wg.Wait()
-    close(ch)
-}
-
-func implementation(depth int, seeds []string) {
-    fetcher := PageFetcher{visited: make(map[string]*FetchResult)}
-    visitDict := VisitDict{visits: make(map[string]bool)}
-    ch := make(chan FetchResult)
-    wg := &sync.WaitGroup{}
-
-    // Launch the workers based on seed URLs
-    for _, curUrl := range seeds {
-        wg.Add(1)
-        go Crawl(curUrl, depth, &fetcher, &visitDict, ch, wg)
-    }
-
-    // Monitor the workers
-    go monitorWorker(wg, ch)
-
-    // Wait and reap results
-    for {
-        select {
-        case res, ok := <-ch:
-            if !ok {
-                return
-            }
-            fmt.Println("Got result with URLs:", len(res.urls))
-        }
-    }
-
-    fmt.Println("Total links visited:", len(visitDict.visits))
-}
-
-func UsageExit() {
-    fmt.Println("Usage: Program Depth <'URLs'> <'separated'> <'by'> <'space'>")
-    os.Exit(-1)
-}
-
-func main() {
-    if (len(os.Args) < 3) {
-        UsageExit()
-    }
-    depth, err := strconv.Atoi(os.Args[1])
-    if err != nil {
-        UsageExit()
-    }
-    implementation(depth, os.Args[2:])
 }
