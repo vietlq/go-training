@@ -210,17 +210,56 @@ func ExtractLinks(refUrl string, r io.Reader) (resLinks ExtractedLinks) {
     return
 }
 
+func CheckFetchErrors(curUrl string, header http.Header) error {
+    // Check if the return code is 200
+    val, ok := header["Status"]
+    if ok && (len(val) != 1 || val[0] != "200 OK") {
+        return fmt.Errorf("Bad HTTP Status: %q returned by URL %s", val, curUrl)
+    }
+
+    // Check if it's really HTML before trying to extract anything
+    val, ok = header["Content-Type"]
+    if !ok || len(val) != 1 {
+        return fmt.Errorf("Bad Content-Type, expected HTML: %q returned by URL %s", val, curUrl)
+    }
+    contentType := val[0]
+    if contentType[:9] != "text/html" && contentType[:9] != "text/html;" {
+        return fmt.Errorf("Bad Content-Type, expected HTML: %q returned by URL %s", val, curUrl)
+    }
+
+    // Check the Content-Length
+    val, ok = header["Content-Length"]
+    fmt.Printf("Content-Length: val = %s, curUrl = %s\n", val, curUrl)
+    const MAX_CONTENT_LEN = 1024*1024
+    if ok {
+        contentLen, convErr := strconv.Atoi(val[0])
+        if convErr == nil && contentLen > MAX_CONTENT_LEN {
+            return fmt.Errorf("Bad Content-Length, must not exceed %v (bytes), actual %v (bytes) returned by URL %s", MAX_CONTENT_LEN, val, curUrl)
+        }
+    }
+
+    return nil
+}
+
 func (f *PageFetcher) Fetch(curUrl string) (string, []string, error) {
     // Use the cache
     if res, ok := f.visited[curUrl]; ok {
         return res.body, res.urls, nil
     }
+
     // Fetch if not in cache
     resp, err := http.Get(curUrl)
+
     // Report error
     if err != nil {
         return "", nil, fmt.Errorf("not found: %s", curUrl)
     }
+
+    header := resp.Header
+    if err = CheckFetchErrors(curUrl, header); err != nil {
+        return "", nil, err
+    }
+
     // Read the response body
     defer resp.Body.Close()
     // Extract URLs
