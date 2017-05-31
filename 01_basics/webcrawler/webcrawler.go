@@ -2,14 +2,10 @@ package main
 
 import (
     "fmt"
-    "io"
     "os"
     "net/http"
-    "net/url"
     "strconv"
-    "strings"
     "sync"
-    "golang.org/x/net/html"
     //"io/ioutil"
     "wcutil"
 )
@@ -32,13 +28,6 @@ type FetchResult struct {
 type VisitDict struct {
     visits map[string]bool
     mux    sync.RWMutex
-}
-
-type ExtractedLinks struct {
-    urls    []string
-    imgs    []string
-    scripts []string
-    styles  []string
 }
 
 func main() {
@@ -125,89 +114,32 @@ func monitorWorker(wg *sync.WaitGroup, ch chan FetchResult) {
     close(ch)
 }
 
-func ExtractAttr(z *html.Tokenizer, targetAttr string) string {
-    key, val, moreAttr := z.TagAttr()
-    attr := string(key)
-    for len(attr) > 0 && attr != targetAttr && moreAttr {
-        key, val, moreAttr = z.TagAttr()
-        attr = string(key)
+func (f *PageFetcher) Fetch(curUrl string) (string, []string, error) {
+    // Use the cache
+    if res, ok := f.visited[curUrl]; ok {
+        return res.body, res.urls, nil
     }
 
-    if attr == targetAttr {
-        return strings.Trim(string(val), " \t\n")
+    // Fetch if not in cache
+    resp, err := http.Get(curUrl)
+
+    // Report error
+    if err != nil {
+        return "", nil, fmt.Errorf("URL not found: %s", curUrl)
     }
 
-    return ""
-}
-
-func ExtractLinkCssHref(z *html.Tokenizer) string {
-    attrs := make(map[string]string)
-
-    key, val, moreAttr := z.TagAttr();
-    for moreAttr {
-        attrs[string(key)] = string(val)
-        key, val, moreAttr = z.TagAttr();
-    }
-    attrs[string(key)] = string(val)
-
-    if val, ok := attrs["rel"]; ok && val == "stylesheet" {
-        if val, ok = attrs["href"]; ok {
-            return strings.Trim(val, " \t\n")
-        }
-    }
-    return ""
-}
-
-func ExtractLinks(refUrl string, r io.Reader) (resLinks ExtractedLinks) {
-    z := html.NewTokenizer(r)
-    parsedRefUrl, _ := url.Parse(refUrl)
-
-    for {
-        tt := z.Next()
-
-        switch tt {
-        case html.ErrorToken:
-            return
-        case html.StartTagToken:
-            tn, ok := z.TagName()
-            if !ok {
-                continue
-            }
-            tagName := string(tn)
-            switch tagName {
-            case "a":
-                // Extract HREF from A
-                curUrl := ExtractAttr(z, "href")
-                curUrl = wcutil.NormaliseUrl(parsedRefUrl, curUrl)
-                if (len(curUrl) > 0) {
-                    resLinks.urls = append(resLinks.urls, curUrl)
-                }
-            case "img":
-                // Extract SRC from IMG
-                curUrl := ExtractAttr(z, "src")
-                curUrl = wcutil.NormaliseUrl(parsedRefUrl, curUrl)
-                if (len(curUrl) > 0) {
-                    resLinks.imgs = append(resLinks.imgs, curUrl)
-                }
-            case "script":
-                // Extract SRC from SCRIPT
-                curUrl := ExtractAttr(z, "src")
-                curUrl = wcutil.NormaliseUrl(parsedRefUrl, curUrl)
-                if (len(curUrl) > 0) {
-                    resLinks.scripts = append(resLinks.scripts, curUrl)
-                }
-            case "link":
-                // Extract CSS HREF from LINK with REL="stylesheet"
-                curUrl := ExtractLinkCssHref(z)
-                curUrl = wcutil.NormaliseUrl(parsedRefUrl, curUrl)
-                if (len(curUrl) > 0) {
-                    resLinks.styles = append(resLinks.styles, curUrl)
-                }
-            }
-        }
+    header := resp.Header
+    if err = CheckFetchErrors(curUrl, header); err != nil {
+        return "", nil, err
     }
 
-    return
+    // Read the response body
+    defer resp.Body.Close()
+    // Extract URLs
+    resLinks := wcutil.ExtractLinks(curUrl, resp.Body)
+    fmt.Println(resLinks.Imgs, resLinks.Scripts)
+
+    return "string(body)", resLinks.Urls, nil
 }
 
 func CheckFetchErrors(curUrl string, header http.Header) error {
@@ -239,34 +171,6 @@ func CheckFetchErrors(curUrl string, header http.Header) error {
     }
 
     return nil
-}
-
-func (f *PageFetcher) Fetch(curUrl string) (string, []string, error) {
-    // Use the cache
-    if res, ok := f.visited[curUrl]; ok {
-        return res.body, res.urls, nil
-    }
-
-    // Fetch if not in cache
-    resp, err := http.Get(curUrl)
-
-    // Report error
-    if err != nil {
-        return "", nil, fmt.Errorf("not found: %s", curUrl)
-    }
-
-    header := resp.Header
-    if err = CheckFetchErrors(curUrl, header); err != nil {
-        return "", nil, err
-    }
-
-    // Read the response body
-    defer resp.Body.Close()
-    // Extract URLs
-    resLinks := ExtractLinks(curUrl, resp.Body)
-    fmt.Println(resLinks.imgs, resLinks.scripts)
-
-    return "string(body)", resLinks.urls, nil
 }
 
 func (vd *VisitDict) Visited(curUrl string) bool {
