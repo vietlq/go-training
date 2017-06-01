@@ -128,6 +128,11 @@ func (f *PageFetcher) Fetch(curUrl string) (string, []string, error) {
         return "", nil, fmt.Errorf("URL not found: %s", curUrl)
     }
 
+    // Check if the return code is 200
+    if resp.StatusCode != 200 {
+        return "", nil, fmt.Errorf("Bad HTTP Status: %d returned by URL %s", resp.StatusCode, curUrl)
+    }
+
     header := resp.Header
     if err = CheckFetchErrors(curUrl, header); err != nil {
         return "", nil, err
@@ -143,14 +148,8 @@ func (f *PageFetcher) Fetch(curUrl string) (string, []string, error) {
 }
 
 func CheckFetchErrors(curUrl string, header http.Header) error {
-    // Check if the return code is 200
-    val, ok := header["Status"]
-    if ok && (len(val) != 1 || val[0] != "200 OK") {
-        return fmt.Errorf("Bad HTTP Status: %q returned by URL %s", val, curUrl)
-    }
-
     // Check if it's really HTML before trying to extract anything
-    val, ok = header["Content-Type"]
+    val, ok := header["Content-Type"]
     if !ok || len(val) != 1 {
         return fmt.Errorf("Bad Content-Type, expected HTML: %q returned by URL %s", val, curUrl)
     }
