@@ -132,6 +132,7 @@ func (f *PageFetcher) Fetch(curUrl string) (string, []string, error) {
     if resp.StatusCode != 200 {
         return "", nil, fmt.Errorf("Bad HTTP Status: %d returned by URL %s", resp.StatusCode, curUrl)
     }
+    fmt.Printf("Proto: %s, URL: %s\n", resp.Proto, curUrl)
 
     header := resp.Header
     if err = CheckFetchErrors(curUrl, header); err != nil {
