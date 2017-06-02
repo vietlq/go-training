@@ -13,7 +13,7 @@ import (
 type Fetcher interface {
     // Fetch returns the body of URL and
     // a slice of URLs found on that page.
-    Fetch(curUrl string) (body string, urls []string, err error)
+    Fetch(curUrl string, allowedStatus map[int]struct{}) (body string, urls []string, err error)
 }
 // PageFetcher is Fetcher that returns canned results.
 type PageFetcher struct {
@@ -93,7 +93,8 @@ func Crawl(curUrl string, depth int,
     }
     visitDict.Visit(curUrl)
 
-    body, urls, err := fetcher.Fetch(curUrl)
+    allowedStatus := make(map[int]struct{})
+    body, urls, err := fetcher.Fetch(curUrl, allowedStatus)
     if err != nil {
         fmt.Println(err)
         return
@@ -114,7 +115,7 @@ func monitorWorker(wg *sync.WaitGroup, ch chan FetchResult) {
     close(ch)
 }
 
-func (f *PageFetcher) Fetch(curUrl string) (string, []string, error) {
+func (f *PageFetcher) Fetch(curUrl string, allowedStatus map[int]struct{}) (string, []string, error) {
     // Use the cache
     if res, ok := f.visited[curUrl]; ok {
         return res.body, res.urls, nil
@@ -128,10 +129,14 @@ func (f *PageFetcher) Fetch(curUrl string) (string, []string, error) {
         return "", nil, fmt.Errorf("URL not found: %s", curUrl)
     }
 
-    // Check if the return code is 200
-    if resp.StatusCode != 200 {
-        return "", nil, fmt.Errorf("Bad HTTP Status: %d returned by URL %s", resp.StatusCode, curUrl)
+    // If no specific HTTP StatusCode, accept all
+    if len(allowedStatus) > 0 {
+        // Check if the return code is allowed
+        if _, ok := allowedStatus[resp.StatusCode]; !ok {
+            return "", nil, fmt.Errorf("Bad HTTP Status: %d returned by URL %s", resp.StatusCode, curUrl)
+        }
     }
+    fmt.Printf("StatusCode: %s, URL: %s\n", resp.StatusCode, curUrl)
     fmt.Printf("Proto: %s, URL: %s\n", resp.Proto, curUrl)
 
     header := resp.Header
