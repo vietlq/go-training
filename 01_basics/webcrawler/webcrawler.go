@@ -8,6 +8,7 @@ import (
     "sync"
     //"io/ioutil"
     "wcutil"
+    "strings"
 )
 
 type Fetcher interface {
@@ -159,10 +160,15 @@ func CheckFetchErrors(curUrl string, header http.Header) error {
     if !ok || len(val) != 1 {
         return fmt.Errorf("Bad Content-Type, expected HTML: %q returned by URL %s", val, curUrl)
     }
-    contentType := val[0]
-    if contentType[:9] != "text/html" && contentType[:9] != "text/html;" {
-        return fmt.Errorf("Bad Content-Type, expected HTML: %q returned by URL %s", val, curUrl)
+    contentType := strings.ToLower(val[0])
+    cntTypeParts := []string{}
+    for _, v := range strings.Split(contentType, ";") {
+        cntTypeParts = append(cntTypeParts, strings.TrimSpace(v))
     }
+    if cntTypeParts[0] != "text/html" {
+        return fmt.Errorf("Bad Content-Type, expected HTML: %q returned by URL %s", cntTypeParts[0], curUrl)
+    }
+    fmt.Printf("Content-Type: <%s>, URL: %s\n", contentType, curUrl)
 
     // Check the Content-Length
     val, ok = header["Content-Length"]
