@@ -2,6 +2,7 @@
 
 ## References
 
+* [Official Tour of Go Site](https://tour.golang.org/list)
 * [*A Tour of Go* by Russ Cox](https://www.youtube.com/watch?v=ytEkHepK08c)
 * [Writing, building, installing, and testing Go code](https://www.youtube.com/watch?v=XCsL89YtqCs)
 * [Golang Blog](https://blog.golang.org/)
